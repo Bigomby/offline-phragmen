@@ -36,6 +36,7 @@ use sp_phragmen::{
 };
 use sp_runtime::traits::Convert;
 use support::storage::generator::Linkage;
+use serde::Serialize;
 
 // TODO: clean function interfaces: probably no more passing string.
 
@@ -300,6 +301,13 @@ mod election_utils {
 
 		Staker { ctrl: None, stake }
 	}
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+struct Output {
+	supports:
+		BTreeMap<sp_core::crypto::AccountId32, sp_phragmen::Support<sp_core::crypto::AccountId32>>,
+	winners: Vec<sp_core::crypto::AccountId32>,
 }
 
 fn main() {
@@ -589,17 +597,15 @@ fn main() {
 
 		// potentially write to json file
 		if let Some(output_file) = maybe_output_file {
-			use std::fs::File;
+			use std::fs;
 
-			let output = serde_json::json!({
-				"supports": supports,
-				"winners": elected_stashes,
-			});
+			let output = Output {
+				supports: supports,
+				winners: elected_stashes,
+			};
+			let output_str = serde_json::to_string(&output).unwrap();
 
-			serde_json::to_writer_pretty(
-				&File::create(format!("{}", output_file)).unwrap(),
-				&output
-			).unwrap();
+            fs::write(output_file, output_str).expect("Unable to write file");
 		}
 	})
 }
