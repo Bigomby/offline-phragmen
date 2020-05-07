@@ -12,8 +12,17 @@ use sp_phragmen::*;
 use sp_runtime::traits::Convert;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
+use sp_core::crypto::AccountId32;
+use serde::Serialize;
+use std::fs;
 
 const MODULE: &'static str = "Staking";
+
+#[derive(Debug, Serialize)]
+struct Output {
+	supports: BTreeMap<AccountId32, Support<AccountId32>>,
+	winners: Vec<AccountId32>,
+}
 
 /// A staker
 #[derive(Debug, Clone, Default)]
@@ -441,6 +450,15 @@ pub async fn run(client: &Client, common_config: CommonConfig, matches: &clap::A
 			.filter(|(v, _)| v == s)
 			.collect::<Vec<_>>();
 		assert!(self_stake.len() == 1);
+
+		// let entry = Output{
+		// 	position: i+1,
+		// 	identity: network::get_identity(&s, &client, at).await,
+		// 	total_stake: KSM(support.total).to_string(),
+		// 	voters: other_count,
+		// 	self_stake: KSM(self_stake[0].1).to_string(),
+		// };
+
 		println!(
 			"#{} --> {} [{:?}] [total backing = {:?} ({} voters)] [own backing = {:?}]",
 			i + 1,
@@ -605,14 +623,10 @@ pub async fn run(client: &Client, common_config: CommonConfig, matches: &clap::A
 
 	// potentially write to json file
 	if let Some(output_file) = command_config.output {
-		use std::fs::File;
+		let output = Output { supports, winners: elected_stashes };
+		let output_str = serde_json::to_string(&output).unwrap();
 
-		let output = serde_json::json!({
-			"supports": supports,
-			"winners": elected_stashes,
-		});
-
-		serde_json::to_writer_pretty(&File::create(format!("{}", output_file)).unwrap(), &output)
-			.unwrap();
+		fs::write(output_file, output_str).
+			expect("Unable to write file");
 	}
 }
